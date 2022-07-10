@@ -22,19 +22,21 @@ public class BaseController {
     //为200 OK，这么做的含义是，请求确实得到响应了，错误不在网络传输中
     // 而是发生在业务层面
     //@ResponseBody 将返回的ex转为json输出，而不是寻找跳转界面
-    @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
-    public CommonReturnType handlerException(HttpServletRequest request, Exception ex){
-        Map<String,Object> responseData = new HashMap<>();
-        if(ex instanceof BusinessException){
-            BusinessException businessException = (BusinessException)ex;
-            responseData.put("errCode",businessException.getErrCode());
-            responseData.put("errMsg",businessException.getErrMsg());
-        }else {
-            responseData.put("errCode", EmBusinessError.UNKNOW_ERROR.getErrCode());
-            responseData.put("errMsg",EmBusinessError.UNKNOW_ERROR.getErrMsg());
-        }
-        return CommonReturnType.create(responseData,"fail");
-    }
+
+
+//    @ExceptionHandler(Exception.class)
+//    @ResponseStatus(HttpStatus.OK)
+//    @ResponseBody
+//    public CommonReturnType handlerException(HttpServletRequest request, Exception ex){
+//        Map<String,Object> responseData = new HashMap<>();
+//        if(ex instanceof BusinessException){
+//            BusinessException businessException = (BusinessException)ex;
+//            responseData.put("errCode",businessException.getErrCode());
+//            responseData.put("errMsg",businessException.getErrMsg());
+//        }else {
+//            responseData.put("errCode", EmBusinessError.UNKNOW_ERROR.getErrCode());
+//            responseData.put("errMsg",EmBusinessError.UNKNOW_ERROR.getErrMsg());
+//        }
+//        return CommonReturnType.create(responseData,"fail");
+//    }
 }
