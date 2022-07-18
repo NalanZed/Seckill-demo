@@ -11,6 +11,7 @@ import com.miaoshaproject.service.model.UserModel;
 import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -19,6 +20,8 @@ import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RestController("user")
 @RequestMapping("/user")
@@ -38,6 +41,9 @@ public class UserController extends BaseController{
 
     @Autowired
     private HttpServletRequest httpServletRequest;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     //根据给出的id返回用户对象
     @ResponseBody
@@ -115,11 +121,21 @@ public class UserController extends BaseController{
         if(userModel == null){
             throw new BusinessException(EmBusinessError.USER_LOGIN_FAILED);
         }
-        // 验证通过，加入session
-        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
-        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
+        // 基于session 的会话传输
+//        this.httpServletRequest.getSession().setAttribute("IS_LOGIN",true);
+//        this.httpServletRequest.getSession().setAttribute("LOGIN_USER",userModel);
+        //基于token的会话，将登录信息存入redis种
+        //生成登录凭证token，UUID
+        String uuidToken = UUID.randomUUID().toString();
+        //去掉uuid中的 -
+        uuidToken = uuidToken.replace("-", "");
+        //建立token和用户登录态之间的联系
+        redisTemplate.opsForValue().set(uuidToken,userModel);
+        //设置超时时间
+        redisTemplate.expire(uuidToken,1, TimeUnit.HOURS);
 
-        return CommonReturnType.create(null);
+        //下发token至前端
+        return CommonReturnType.create(uuidToken);
     }
 
 

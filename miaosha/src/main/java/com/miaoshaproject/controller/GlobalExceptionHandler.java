@@ -37,7 +37,6 @@ public class GlobalExceptionHandler {
             responseData.put("errCode", EmBusinessError.UNKNOW_ERROR.getErrCode());
             responseData.put("errMsg",EmBusinessError.UNKNOW_ERROR.getErrMsg());
         }
-
-        return CommonReturnType.create(responseData);
+        return CommonReturnType.create(responseData,"fail");
     }
 }

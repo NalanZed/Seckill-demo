@@ -10,8 +10,10 @@ D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\dataob
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\service\UserService.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\controller\BaseController.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\service\impl\ItemServiceImpl.java
+D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\config\RedisConfig.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\service\ItemService.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\service\impl\UserServiceImpl.java
+D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\config\WebServerConfiguration.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\service\model\UserModel.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\error\EmBusinessError.java
 D:\Mylearning\MIAOSHA\project2.0\miaosha\src\main\java\com\miaoshaproject\controller\OrderController.java

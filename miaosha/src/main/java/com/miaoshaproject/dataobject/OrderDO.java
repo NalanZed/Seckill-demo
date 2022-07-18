@@ -57,13 +57,6 @@ public class OrderDO {
      */
     private BigDecimal orderPrice;
 
-    public Integer getPromoId() {
-        return promoId;
-    }
-
-    public void setPromoId(Integer promoId) {
-        this.promoId = promoId;
-    }
 
     private Integer promoId;
 
@@ -210,4 +203,13 @@ public class OrderDO {
     public void setOrderPrice(BigDecimal orderPrice) {
         this.orderPrice = orderPrice;
     }
+
+    public Integer getPromoId() {
+        return promoId;
+    }
+
+    public void setPromoId(Integer promoId) {
+        this.promoId = promoId;
+    }
+
 }

@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 // 当spring容器内没有TomcatEmbeddedServletContainerFactory这个bean时
 // 会把此bean加载进sping
 
-@Component
 public class WebServerConfiguration implements WebServerFactoryCustomizer<ConfigurableWebServerFactory> {
 
     //定制化tomcat的工厂
