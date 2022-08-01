@@ -6,14 +6,17 @@ import com.miaoshaproject.dataobject.ItemDO;
 import com.miaoshaproject.dataobject.ItemStockDO;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
+import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.ItemModel;
 import com.miaoshaproject.service.model.PromoModel;
 import com.miaoshaproject.validator.ValidationResult;
 import com.miaoshaproject.validator.ValidatorImpl;
+import org.apache.rocketmq.client.producer.SendResult;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.miaoshaproject.controller.BaseController.CONTENT_TYPE_FORMED;
@@ -35,6 +39,10 @@ public class ItemServiceImpl implements ItemService {
     private ItemStockDOMapper itemStockDOMapper;
     @Autowired
     private PromoService promoService;
+    @Autowired
+    private RedisTemplate redisTemplate;
+    @Autowired
+    private MqProducer mqProducer;
 
     @Override
     @Transactional
@@ -93,10 +101,26 @@ public class ItemServiceImpl implements ItemService {
         if(itemId == null || amount == null){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR);
         }
-        int affectedRow = itemStockDOMapper.decreaseStock(itemId,amount);
-        if(affectedRow>0){
-            return true;
+//        int affectedRow = itemStockDOMapper.decreaseStock(itemId,amount);
+//        if(affectedRow>0){
+//            return true;
+//        }else {
+//            return false;
+//        }
+
+        long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue() * -1);
+        if(result>0){
+            // 调用 mqProducer的 发送扣减消息方法
+            // 如果发送失败，视为本次扣减也失败，回退redis的扣减
+             boolean successed = mqProducer.asyncReduceStock(itemId,amount);
+             if(successed){
+                return  true;
+             }else {
+                 redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
+                 return true;
+             }
         }else {
+            redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
             return false;
         }
     }
@@ -109,6 +133,18 @@ public class ItemServiceImpl implements ItemService {
         }
         // 在item表中将item_id 商品销量加上 amount
        itemDOMapper.updateSalesByItemId(itemId,amount);
+    }
+
+    @Override
+    // 做下单时，物品风控验证的缓存
+    public ItemModel getItemByIdInCache(Integer id) {
+        ItemModel itemModel = (ItemModel) redisTemplate.opsForValue().get("item_validate_" + id);
+        if(itemModel==null){
+            itemModel = this.getItemById(id);
+            redisTemplate.opsForValue().set("item_validate_"+id,itemModel);
+            redisTemplate.expire("item_validate_"+id,10, TimeUnit.MINUTES);
+        }
+        return itemModel;
     }
 
     private ItemDO convertFromItemModel(ItemModel itemModel){

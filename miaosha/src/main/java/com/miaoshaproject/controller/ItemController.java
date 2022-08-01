@@ -3,18 +3,21 @@ package com.miaoshaproject.controller;
 import com.miaoshaproject.controller.viewobject.ItemVO;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.response.CommonReturnType;
+import com.miaoshaproject.service.CacheService;
 import com.miaoshaproject.service.ItemService;
+import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.ItemModel;
 import com.miaoshaproject.service.model.PromoModel;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController("item")
@@ -24,6 +27,12 @@ public class ItemController extends BaseController{
 
     @Autowired
     private ItemService itemService;
+    @Autowired
+    private RedisTemplate redisTemplate;
+    @Autowired
+    private CacheService cacheService;
+    @Autowired
+    private PromoService promoService;
 
     @RequestMapping(value = "/create",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
     @ResponseBody
@@ -47,10 +56,37 @@ public class ItemController extends BaseController{
         return CommonReturnType.create(itemVO);
     }
 
+    // 调用promoservice，将活动信息发布
+    // 内容就是把当前item的stock发布到redis中
+    // 这里存在安全问题。
+    @RequestMapping(value = "/publishpromo",method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType publishPromo(@RequestParam(name = "id") Integer id){
+        promoService.publishPromo(id);
+        return CommonReturnType.create(null);
+    }
+
+
     @RequestMapping(value = "/get",method = {RequestMethod.GET})
     @ResponseBody
     public CommonReturnType getItem(@RequestParam(name = "id")Integer id){
-        ItemModel itemModel = itemService.getItemById(id);
+        ItemModel itemModel = null;
+
+        // 先读本地缓存，本地缓存->redis->db
+        itemModel = (ItemModel)cacheService.getFromCommonCache("item_" + id);
+        if(itemModel == null){
+            //读redis缓存,redis->db
+            itemModel = (ItemModel) redisTemplate.opsForValue().get("item_" + id);
+            // 缓存中不存在，则访问下游service
+            if(itemModel == null){
+                itemModel = itemService.getItemById(id);
+                // 写入redis缓存
+                redisTemplate.opsForValue().set("item_" + id , itemModel);
+                //设置数据过期时间
+                redisTemplate.expire("item_" + id,10, TimeUnit.MINUTES);
+            }
+            cacheService.setCommonCache("item_" + id,itemModel);
+        }
         ItemVO itemVO = convertItemVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
     }

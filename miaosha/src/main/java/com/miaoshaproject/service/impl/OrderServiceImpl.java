@@ -8,8 +8,10 @@ import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
 import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.OrderService;
+import com.miaoshaproject.service.UserService;
 import com.miaoshaproject.service.model.ItemModel;
 import com.miaoshaproject.service.model.OrderModel;
+import com.miaoshaproject.service.model.UserModel;
 import com.miaoshaproject.validator.ValidationResult;
 import com.miaoshaproject.validator.ValidatorImpl;
 import org.springframework.beans.BeanUtils;
@@ -33,13 +35,22 @@ public class OrderServiceImpl implements OrderService {
     private OrderDOMapper orderDOMapper;
     @Autowired(required = false)
     private SequenceDOMapper sequenceDOMapper;
+    @Autowired
+    private UserService userService;
 
     @Override
     @Transactional
     public OrderModel createOrder(Integer userId, Integer itemId, Integer amount,Integer promoId) throws BusinessException {
         // 1. 校验下单状态，下单的商品是否存在，用户是否合法，购买数量是否正确
-        ItemModel item = itemService.getItemById(itemId);
+//        ItemModel item = itemService.getItemById(itemId);
+        //减少对数据库的依赖
+        ItemModel item = itemService.getItemByIdInCache(itemId);
         if(item == null){
+            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品不存在");
+        }
+//        UserModel userModel = userService.getUserById(userId);
+        UserModel userModel = userService.getUserByIdInCache(userId);
+        if(userModel == null){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品不存在");
         }
         OrderModel orderModel = new OrderModel();
