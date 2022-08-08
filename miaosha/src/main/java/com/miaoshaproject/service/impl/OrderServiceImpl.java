@@ -2,8 +2,10 @@ package com.miaoshaproject.service.impl;
 
 import com.miaoshaproject.dao.OrderDOMapper;
 import com.miaoshaproject.dao.SequenceDOMapper;
+import com.miaoshaproject.dao.StockLogDOMapper;
 import com.miaoshaproject.dataobject.OrderDO;
 import com.miaoshaproject.dataobject.SequenceDO;
+import com.miaoshaproject.dataobject.StockLogDO;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EmBusinessError;
 import com.miaoshaproject.service.ItemService;
@@ -19,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,10 +41,12 @@ public class OrderServiceImpl implements OrderService {
     private SequenceDOMapper sequenceDOMapper;
     @Autowired
     private UserService userService;
+    @Autowired(required = false)
+    private StockLogDOMapper stockLogDOMapper;
 
     @Override
     @Transactional
-    public OrderModel createOrder(Integer userId, Integer itemId, Integer amount,Integer promoId) throws BusinessException {
+    public OrderModel createOrder(Integer userId, Integer itemId, Integer amount,Integer promoId,String stockLogId) throws BusinessException {
         // 1. 校验下单状态，下单的商品是否存在，用户是否合法，购买数量是否正确
 //        ItemModel item = itemService.getItemById(itemId);
         //减少对数据库的依赖
@@ -48,11 +54,11 @@ public class OrderServiceImpl implements OrderService {
         if(item == null){
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品不存在");
         }
-//        UserModel userModel = userService.getUserById(userId);
-        UserModel userModel = userService.getUserByIdInCache(userId);
-        if(userModel == null){
-            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品不存在");
-        }
+////        UserModel userModel = userService.getUserById(userId);
+//        UserModel userModel = userService.getUserByIdInCache(userId);
+//        if(userModel == null){
+//            throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"商品不存在");
+//        }
         OrderModel orderModel = new OrderModel();
         orderModel.setUserId(userId);
         orderModel.setItemId(itemId);
@@ -62,18 +68,18 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,validationResult.getErrorMsg());
         }
         // 校验活动信息
-        if(promoId != null){
-            // (1) 校验对应活动是否存在这个适用商品
-            if(promoId.intValue() != item.getPromoModel().getId()){
-                // 校验活动id是否与数据库中的id相同
-                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动信息不正确");
-            }else{
-                // (2) 校验活动是否正在进行
-                if(item.getPromoModel().getStatus()!=2){
-                    throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动还未开始");
-                }
-            }
-        }
+//        if(promoId != null){
+//            // (1) 校验对应活动是否存在这个适用商品
+//            if(promoId.intValue() != item.getPromoModel().getId()){
+//                // 校验活动id是否与数据库中的id相同
+//                throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动信息不正确");
+//            }else{
+//                // (2) 校验活动是否正在进行
+//                if(item.getPromoModel().getStatus()!=2){
+//                    throw new BusinessException(EmBusinessError.PARAMETER_VALIDATION_ERROR,"活动还未开始");
+//                }
+//            }
+//        }
 
         // 2. 落单减库存\支付减库存
         boolean successed = itemService.decreaseStock(itemId, amount);
@@ -94,8 +100,30 @@ public class OrderServiceImpl implements OrderService {
         //生成唯一ID
         orderDO.setId(generateOrderNo());
         orderDOMapper.insertSelective(orderDO);
-        //4. 更新销量
-        itemService.increaseSales(itemId,amount);
+        //4. 更新销量---迁移到异步执行逻辑中
+//        itemService.increaseSales(itemId,amount);
+//        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+//            @Override
+//            public void afterCommit() {
+//                // 异步更新库存推迟到此
+//                boolean mqResult = itemService.asyncDecreaseStock(itemId,amount);
+////                if(!mqResult){
+////                    // 回滚redis，并报出异常
+////                    itemService.rollbackStock(itemId,amount);
+////                    throw new BusinessException(EmBusinessError.MQ_SEND_ERROR);
+////                }
+//            }
+//        });
+
+            // 设置库存流水状态为成功
+        StockLogDO stockLogDO = stockLogDOMapper.selectByPrimaryKey(stockLogId);
+        if(stockLogDO==null){
+            throw new BusinessException(EmBusinessError.UNKNOW_ERROR,"无库存流水");
+        }
+        // 更新流水状态为成功
+        stockLogDO.setStatus(2);
+        stockLogDOMapper.updateByPrimaryKeySelective(stockLogDO);
+
         // 5. 返回前端
         return orderModel;
     }

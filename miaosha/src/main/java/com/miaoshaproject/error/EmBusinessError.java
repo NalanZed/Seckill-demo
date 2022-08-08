@@ -19,9 +19,9 @@ public enum EmBusinessError implements CommonError{
     USER_LOGIN_FAILED(20002,"用户手机或密码错误"),
     USER_NOT_LOGIN(20003,"用户还未登录"),
     //3开头为交易信息错误
-    STOCK_NOT_ENOUGH(30001,"库存不足")
-
-
+    STOCK_NOT_ENOUGH(30001,"库存不足"),
+    MQ_SEND_ERROR(30002,"异步更新失败"),
+    RATELIMIT(30003,"活动太火爆了")
 
     ;
     private int errCode;

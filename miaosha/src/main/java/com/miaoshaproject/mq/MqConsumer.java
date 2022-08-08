@@ -2,6 +2,8 @@ package com.miaoshaproject.mq;
 
 import com.alibaba.fastjson.JSON;
 import com.miaoshaproject.dao.ItemStockDOMapper;
+import com.miaoshaproject.error.BusinessException;
+import com.miaoshaproject.service.ItemService;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
@@ -26,6 +28,9 @@ public class MqConsumer {
     private String topicName;
     @Autowired(required = false)
     private ItemStockDOMapper itemStockDOMapper;
+    @Autowired
+    private ItemService itemService;
+
     @PostConstruct
     public void init() throws MQClientException {
         consumer = new DefaultMQPushConsumer("stock_consumer_group");
@@ -40,7 +45,14 @@ public class MqConsumer {
                 Map<String,Integer> map =  JSON.parseObject(jsonString, Map.class);
                 Integer itemId = (Integer) map.get("itemId");
                 Integer amount = (Integer) map.get("amount");
+                //异步更新库存
                 itemStockDOMapper.decreaseStock(itemId,amount);
+                //异步更新销量
+                try {
+                    itemService.increaseSales(itemId,amount);
+                } catch (BusinessException e) {
+                    e.printStackTrace();
+                }
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });

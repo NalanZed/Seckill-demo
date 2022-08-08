@@ -10,5 +10,5 @@ public interface OrderService {
 
     //推荐使用 方案一
     // 如果前端没有传递promo 相关参数，认定其为平销商品
-    OrderModel createOrder(Integer userId,Integer itemId,Integer amount,Integer promoId) throws BusinessException;
+    OrderModel createOrder(Integer userId,Integer itemId,Integer amount,Integer promoId,String stockLogId) throws BusinessException;
 }
